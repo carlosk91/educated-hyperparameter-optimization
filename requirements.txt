@@ -1,0 +1,11 @@
+sklearn-pandas
+scikit-learn>=1.4.2
+ucimlrepo>=0.0.6
+xgboost>=2.0.3
+pandas>=2.2.2
+certifi
+numpy>=1.26.4
+scikit-optimize
+matplotlib
+scipy
+seaborn
