@@ -125,7 +125,7 @@ def plot_roc_curves(model_results, X_test, y_test):
         fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
         roc_auc = auc(fpr, tpr)
         line_style = line_styles.get(result['label'], '-')  # Default to solid line if label not found
-        plt.plot(fpr, tpr, color=color, lw=0.5, linestyle=line_style,
+        plt.plot(fpr, tpr, color=color, lw=1.2, linestyle=line_style, alpha=1,
                  label=f'{result["label"]} (AUC = {roc_auc:.4f}, Time = {result["time"]:,.2f}s)')
     plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
     plt.xlim([0.0, 1.0])
