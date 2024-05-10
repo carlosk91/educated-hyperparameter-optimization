@@ -73,15 +73,17 @@ def create_pipeline(X_train):
     ])
 
 
-def train_model(pipeline, X_train, y_train, search_method, params=None, n_iter=None):
+def train_model(pipeline, x, y, search_method, params=None, n_iter=None):
     if search_method == 'baseline':
         searcher = pipeline
     elif search_method == 'grid':
         searcher = GridSearchCV(estimator=pipeline, param_grid=params, scoring='roc_auc', cv=3)
     elif search_method == 'bayes':
         searcher = BayesSearchCV(estimator=pipeline, search_spaces=params, n_iter=n_iter, scoring='roc_auc', cv=3)
+    else:
+        raise ValueError(f"Invalid search method '{search_method}'. Expected one of: 'baseline', 'grid', 'bayes'.")
     start_time = time.time()
-    searcher.fit(X_train, y_train)
+    searcher.fit(x, y)
     end_time = time.time()
     return {"model": searcher, "time": end_time - start_time}
 
@@ -107,11 +109,11 @@ def predict_optimal_hyperparameters(gp_model, param_space):
     return optimal_params_dict, optimal_prediction, std_dev
 
 
-def calculate_probability_of_improvement(bayes_best_auc, predicted_auc, predicted_std_dev):
-    return norm.cdf((predicted_auc - bayes_best_auc) / predicted_std_dev)
+def calculate_probability_of_improvement(bayes_result, predicted_auc, predicted_std_dev):
+    return norm.cdf((predicted_auc - bayes_result['model'].best_score_) / predicted_std_dev)
 
 
-def plot_roc_curves(model_results, X_test, y_test):
+def plot_roc_curves(model_results, x, y):
     sns.set(style="whitegrid")
     plt.figure(figsize=(10, 8))
     colors = sns.color_palette("colorblind", len(model_results))
@@ -121,10 +123,10 @@ def plot_roc_curves(model_results, X_test, y_test):
                    '1 more Gaussian Process on Bayesian Optimized Model': '-.'}
 
     for result, color in zip(model_results, colors):
-        y_pred_proba = result['model'].predict_proba(X_test)[:, 1]
-        fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
+        y_pred_proba = result['model'].predict_proba(x)[:, 1]
+        fpr, tpr, _ = roc_curve(y, y_pred_proba)
         roc_auc = auc(fpr, tpr)
-        line_style = line_styles.get(result['label'], '-')  # Default to solid line if label not found
+        line_style = line_styles.get(result['label'], '-')
         plt.plot(fpr, tpr, color=color, lw=1.2, linestyle=line_style, alpha=1,
                  label=f'{result["label"]} (AUC = {roc_auc:.4f}, Time = {result["time"]:,.2f}s)')
     plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
@@ -136,6 +138,14 @@ def plot_roc_curves(model_results, X_test, y_test):
     plt.legend(loc="lower right")
     plt.savefig('images/ROC_comparison.png', bbox_inches='tight')
     plt.close()
+
+
+def print_model_scores(model_results, x, y):
+    for model_result in model_results:
+        y_pred_prob = model_result["model"].predict_proba(x)[:, 1]
+        fpr, tpr, _ = roc_curve(y, y_pred_prob)
+        roc_auc = auc(fpr, tpr)
+        print(f'{model_result["label"]} AUC: {roc_auc:.4f}. Training time: {model_result["time"]:,.2f}s')
 
 
 def main():
@@ -174,18 +184,19 @@ def main():
     hyperparameter_gp_model = fit_hyperparameters_model(bayes_result["model"])
     optimal_params, optimal_prediction, std_dev = predict_optimal_hyperparameters(hyperparameter_gp_model,
                                                                                   param_space)
-    print(f"Optimal Predicted ROC AUC: {optimal_prediction[0]:.4f} ± {1.96 * std_dev[0]:.4f}")
-    print(
-        f"The probability of finding a better model than the current best on the next iteration is: "
-        f"{calculate_probability_of_improvement(bayes_result['model'].best_score_, optimal_prediction[0], std_dev[0]):.2%}")
     gpbo_pipeline = create_pipeline(X_train)
     gpbo_pipeline.set_params(**{key: val for key, val in optimal_params.items()})
     gpbo_pipeline.fit(X_train, y_train)
     final_time = time.time()
     model_results.append({"model": gpbo_pipeline, "label": "1 more Gaussian Process on Bayesian Optimized Model",
-                          "time": (final_time - start_time) + bayes_result["time"]})
+                          "time": (final_time - start_time)})
 
     plot_roc_curves(model_results, X_test, y_test)
+
+    print_model_scores(model_results, X_test, y_test)
+    print(f"Optimal Predicted ROC AUC after next iteration: {optimal_prediction[0]:.4f} ± {1.96 * std_dev[0]:.4f}")
+    print(f"The probability of finding a better model than the current best on the next iteration is "
+          f"{calculate_probability_of_improvement(bayes_result, optimal_prediction[0], std_dev[0]):.2%}")
 
 
 if __name__ == "__main__":
