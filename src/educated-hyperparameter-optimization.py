@@ -148,6 +148,48 @@ def print_model_scores(model_results, x, y):
         print(f'{model_result["label"]} AUC: {roc_auc:.4f}. Training time: {model_result["time"]:,.2f}s')
 
 
+def plot_hyperparameter_heatmap(grid_results, bayes_results):
+    grid_params = pd.DataFrame(grid_results.cv_results_['params'])
+    grid_scores = pd.Series(grid_results.cv_results_['mean_test_score'])
+    bayes_params = pd.DataFrame(bayes_results.cv_results_['params'])
+    bayes_scores = pd.Series(bayes_results.cv_results_['mean_test_score'])
+
+    # Get the two most relevant hyperparameters from the Grid Search results
+    relevant_params = grid_params.corrwith(grid_scores).abs().sort_values(ascending=False).head(2).index.tolist()
+
+    if len(relevant_params) < 2:
+        print("Not enough hyperparameters for heatmap.")
+        return
+
+    # Combine the results into a single DataFrame
+    grid_params['score'] = grid_scores
+    bayes_params['score'] = bayes_scores
+    grid_params['method'] = 'Grid Search'
+    bayes_params['method'] = 'Bayesian Search'
+    combined_params = pd.concat([grid_params, bayes_params], ignore_index=True)
+
+    x_param = relevant_params[0]
+    y_param = relevant_params[1]
+
+    # Plot the contour plot
+    plt.figure(figsize=(12, 8))
+
+    # Scatter plot of the hyperparameter combinations
+    sns.scatterplot(data=combined_params, x=x_param, y=y_param, hue='method', size='score', palette='viridis',
+                    legend=False, sizes=(20, 200))
+
+    # Contour plot of the scores
+    plt.tricontourf(combined_params[x_param], combined_params[y_param], combined_params['score'], levels=20,
+                    cmap="viridis", alpha=0.7)
+    plt.colorbar(label='AUC Score')
+
+    plt.title(f"Contour Plot of {x_param} vs {y_param} with AUC Scores (Combined Search Results)")
+    plt.xlabel(x_param)
+    plt.ylabel(y_param)
+    plt.savefig('images/hyperparameter_auc_contour.png', bbox_inches='tight')
+    plt.close()
+
+
 def main():
     X, y_encoded = fetch_and_prepare_data(222)
     X_train, X_test, y_train, y_test = split_data(X, y_encoded)
@@ -156,8 +198,8 @@ def main():
 
     param_grid = {'clf__max_depth': [3, 10],
                   'clf__learning_rate': [0.01, 0.2],
-                  'clf__n_estimators': [100, 200],
-                  'clf__colsample_bytree': [0.5, 0.75, 1]
+                  'clf__n_estimators': [100, 200, 300],
+                  'clf__colsample_bytree': [0.5, 1]
                   }
 
     param_space = {'clf__max_depth': Integer(3, 10),
@@ -197,6 +239,8 @@ def main():
     print(f"Optimal Predicted ROC AUC after next iteration: {optimal_prediction[0]:.4f} ± {1.96 * std_dev[0]:.4f}")
     print(f"The probability of finding a better model than the current best on the next iteration is "
           f"{calculate_probability_of_improvement(bayes_result, optimal_prediction[0], std_dev[0]):.2%}")
+
+    plot_hyperparameter_heatmap(grid_result['model'], bayes_result['model'])
 
 
 if __name__ == "__main__":
