@@ -59,15 +59,23 @@ The script will perform the following steps:
 
 The results of the hyperparameter optimization are as follows:
 
-- **Baseline Model**: AUC = 0.9233, Training time = 1.41s
-- **Grid Search CV Model**: AUC = 0.9267, Training time = 139.79s
-- **Bayesian Search CV Model**: AUC = 0.9302, Training time = 203.14s
-- **Gaussian Process on Bayesian Optimized Model**: AUC = 0.9275, Training time = 5.15s
+- **Baseline Model**: AUC = 0.9233, Training time = 1.11s
+- **Grid Search CV Model**: AUC = 0.9267, Training time = 141.47s
+- **Bayesian Search CV Model**: AUC = 0.9302, Training time = 171.56s
+- **Gaussian Process on Bayesian Optimized Model**: AUC = 0.9275, Training time = 4.70s
 
 The optimal predicted ROC AUC after the next iteration on the Gaussian Process is 0.9237 ± 0.0107. The probability of finding a better model than the current best on the next iteration is 19.12%.
 
 ### ROC Curve Comparison
 ![ROC Comparison](images/ROC_comparison.png)
+
+This shows that if there's an urgent need to deploy a model, a baseline, well-built model will fulfill the requirements.
+
+### Contour plot of Learning Rate vs Max Depth with AUC Scores (
+![Hyper Parameters Impact on AUC](images/hyperparameter_auc_contour.png)
+.png)
+
+Plot to show the AUC space according to the two most correlated hyperparameters with itself.
 
 ## Contributing
 
